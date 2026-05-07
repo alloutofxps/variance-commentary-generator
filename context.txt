@@ -1,0 +1,23 @@
+# MANAGEMENT CONTEXT FOR AI COMMENTARY
+# ─────────────────────────────────────────────────────────────────────────────
+# This file is optional but recommended.
+# Add context here that the AI cannot see from the GL data alone.
+# The tool uses this to write better, more specific commentary.
+#
+# HOW TO USE:
+# 1. Run the tool once to see the initial output.
+# 2. Review Tab 01 "Areas Requiring Management Input" in the Excel file.
+# 3. Delete the example below and add your answers.
+# 4. Re-run: python analyse.py
+#
+# Lines starting with # are ignored by the tool.
+# Write your context in plain English below the dashed line.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# EXAMPLE (delete and replace with your own answers):
+#
+# Staff costs increased due to 3 new hires in the Sales team in Q2.
+# Commission rate structure was unchanged — the increase is purely volume-driven.
+# Entertainment costs include a one-off client event in September (approx. 12,000).
+# Receivables increase reflects a new 60-day payment term offered to 3 key customers.
+# Inventory build is deliberate — pre-positioned for a Q1 product launch.
