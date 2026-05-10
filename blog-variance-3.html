@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The First Build: It Worked, And That's the Problem — Pratik Parashar</title>
+
+  <!-- OG / Social -->
+  <meta property="og:title" content="The First Build: It Worked, And That's the Problem" />
+  <meta property="og:description" content="The v1 ran end-to-end. Three Excel tabs, Claude-generated commentary, real numbers. So why did I throw it out and start again?" />
+  <meta property="og:image" content="https://alloutoftokens.com/og-variance-3.png" />
+  <meta property="og:url" content="https://alloutoftokens.com/blog-variance-3.html" />
+  <meta property="og:type" content="article" />
+  <meta property="article:author" content="Pratik Parashar" />
+  <meta property="article:published_time" content="2026-05-08" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="The First Build: It Worked, And That's the Problem" />
+  <meta name="twitter:description" content="The v1 ran end-to-end. Three Excel tabs, Claude-generated commentary, real numbers. So why did I throw it out and start again?" />
+  <meta name="twitter:image" content="https://alloutoftokens.com/og-variance-3.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* Reset & tokens */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black:   #0d0d0d;
+      --cream:   #f5f0e8;
+      --red:     #ff3c1f;
+      --mid:     #6b6560;
+      --border:  rgba(13,13,13,0.12);
+      --ff-serif: 'Playfair Display', Georgia, serif;
+      --ff-mono:  'Space Mono', 'Courier New', monospace;
+      --ff-sans:  'DM Sans', system-ui, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--cream);
+      color: var(--black);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 18px;
+      line-height: 1.7;
+      cursor: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Custom cursor */
+    .cursor {
+      position: fixed;
+      width: 10px; height: 10px;
+      background: var(--red);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: transform 0.08s ease, width 0.2s ease, height 0.2s ease, background 0.2s ease;
+      mix-blend-mode: multiply;
+    }
+    .cursor.hover { width: 28px; height: 28px; background: var(--black); }
+
+    /* Nav */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--cream);
+      border-bottom: 1px solid var(--border);
+      padding: 0 clamp(24px, 5vw, 80px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .nav-logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+      color: var(--black);
+      text-transform: uppercase;
+    }
+    .nav-logo span { color: var(--red); }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--mid);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--red); }
+
+    /* Article layout */
+    .article-wrap {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 0 clamp(24px, 5vw, 48px);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 72px 0 0;
+      border-bottom: 2px solid var(--black);
+      margin-bottom: 64px;
+    }
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--cream);
+      background: var(--red);
+      padding: 4px 10px;
+    }
+    .tag-series {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--red);
+      border: 1px solid var(--red);
+      padding: 3px 10px;
+    }
+    .hero-date {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--mid);
+      letter-spacing: 0.06em;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 24px;
+    }
+    .hero h1 em { font-style: italic; color: var(--red); }
+    .hero-deck {
+      font-size: 19px;
+      font-weight: 300;
+      color: #3a3530;
+      line-height: 1.6;
+      margin-bottom: 40px;
+      max-width: 600px;
+    }
+
+    /* Series nav */
+    .series-nav {
+      background: var(--black);
+      padding: 28px 32px;
+      margin-bottom: 0;
+    }
+    .series-nav-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .series-nav-label::before { content: ''; width: 24px; height: 1px; background: var(--red); }
+    .series-nav-posts {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px;
+    }
+    .series-post {
+      padding: 12px 10px;
+      background: rgba(245,240,232,0.05);
+      text-align: center;
+    }
+    .series-post.active { background: var(--red); }
+    .series-post.done { background: rgba(255,60,31,0.18); }
+    .series-post .post-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: rgba(245,240,232,0.3);
+      display: block;
+      margin-bottom: 6px;
+    }
+    .series-post.active .post-num { color: var(--cream); }
+    .series-post.done .post-num { color: rgba(245,240,232,0.8); }
+    .series-post .post-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px;
+      color: rgba(245,240,232,0.3);
+      line-height: 1.3;
+    }
+    .series-post.active .post-label { color: rgba(245,240,232,0.9); }
+    .series-post.done .post-label { color: rgba(245,240,232,0.6); }
+    @media (max-width: 540px) {
+      .series-nav-posts { grid-template-columns: 1fr 1fr; gap: 4px; }
+    }
+
+    /* Body content */
+    .post-body { padding-bottom: 80px; }
+    .post-body p {
+      margin-bottom: 28px;
+      font-size: 18px;
+      line-height: 1.75;
+      color: #1a1714;
+    }
+    .post-body h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(22px, 3vw, 28px);
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      margin: 64px 0 24px;
+      padding-top: 64px;
+      border-top: 1px solid var(--border);
+    }
+    .post-body hr { border: none; border-top: 1px solid var(--border); margin: 52px 0; }
+    sup { color: var(--red); font-size: 11px; }
+    sup a { color: var(--red); text-decoration: none; }
+
+    /* Pull quote */
+    .pull-quote {
+      border-left: 4px solid var(--red);
+      margin: 48px 0;
+      padding: 4px 0 4px 28px;
+    }
+    .pull-quote p {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(20px, 2.8vw, 26px);
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.4;
+      color: var(--black);
+      margin: 0;
+    }
+
+    /* Build spec */
+    .build-spec {
+      background: var(--black);
+      color: var(--cream);
+      padding: 40px 48px;
+      margin: 52px 0;
+      border-left: 4px solid var(--red);
+    }
+    .build-spec-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .build-spec-title::before { content: ''; width: 24px; height: 1px; background: var(--red); }
+    .build-spec-row {
+      display: flex;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(245,240,232,0.1);
+      align-items: baseline;
+    }
+    .build-spec-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .build-spec-key {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--red);
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+    .build-spec-val { font-size: 14px; line-height: 1.5; color: rgba(245,240,232,0.75); }
+    .build-spec-val strong { color: var(--cream); }
+    @media (max-width: 540px) { .build-spec { padding: 32px 24px; } }
+
+    /* Code block */
+    .code-block {
+      margin: 40px 0;
+      background: var(--black);
+      border-left: 4px solid var(--red);
+      overflow-x: auto;
+    }
+    .code-block-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red);
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(245,240,232,0.08);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .code-block-label::before { content: ''; width: 24px; height: 1px; background: var(--red); }
+    .code-block pre {
+      padding: 20px 20px 24px;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      line-height: 1.8;
+      color: rgba(245,240,232,0.82);
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .code-block pre .kw  { color: #ff9d7a; }
+    .code-block pre .fn  { color: #f5c97a; }
+    .code-block pre .st  { color: #a8e6a3; }
+    .code-block pre .cm  { color: rgba(245,240,232,0.35); }
+    .code-block pre .num { color: #7ac5f5; }
+
+    /* Screenshot slot */
+    .screenshot-slot {
+      margin: 40px 0;
+      border: 1px dashed rgba(13,13,13,0.25);
+    }
+    .screenshot-slot-header {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--mid);
+      background: rgba(13,13,13,0.04);
+      padding: 10px 16px;
+      border-bottom: 1px dashed rgba(13,13,13,0.15);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .screenshot-slot-header::before {
+      content: '⌶';
+      color: var(--red);
+      font-size: 14px;
+    }
+    .screenshot-slot img {
+      width: 100%;
+      display: block;
+    }
+    .screenshot-slot-caption {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--mid);
+      padding: 10px 16px;
+      line-height: 1.5;
+      border-top: 1px dashed rgba(13,13,13,0.15);
+    }
+    /* Placeholder state (no img src) */
+    .screenshot-slot .placeholder-area {
+      background: rgba(13,13,13,0.03);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 180px;
+      padding: 32px;
+      color: rgba(13,13,13,0.2);
+    }
+    .screenshot-slot .placeholder-area .ph-icon { font-size: 28px; }
+    .screenshot-slot .placeholder-area .ph-text {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      text-align: center;
+      line-height: 1.6;
+      max-width: 380px;
+    }
+
+    /* Commentary demo */
+    .commentary-demo { margin: 52px 0; border: 1px solid var(--border); }
+    .commentary-box { border-top: 2px solid var(--black); }
+    .commentary-box-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .commentary-box-label.bad { color: var(--mid); background: rgba(13,13,13,0.03); }
+    .commentary-box-label.good { color: var(--red); background: rgba(255,60,31,0.04); }
+    .commentary-box-text {
+      padding: 16px 20px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #1a1714;
+      margin: 0;
+    }
+    .commentary-box-text.bad { color: var(--mid); font-style: italic; }
+
+    /* Failure log */
+    .failure-log {
+      margin: 40px 0;
+      border: 1px solid var(--border);
+    }
+    .failure-log-header {
+      background: var(--black);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .failure-log-header .flog-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--red);
+    }
+    .failure-log-item {
+      display: flex;
+      gap: 20px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      align-items: flex-start;
+    }
+    .failure-log-item:last-child { border-bottom: none; }
+    .failure-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+    .failure-content {}
+    .failure-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--black);
+      margin-bottom: 6px;
+    }
+    .failure-detail {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #3a3530;
+    }
+    .failure-fix {
+      font-size: 13px;
+      color: var(--mid);
+      margin-top: 6px;
+      padding-left: 12px;
+      border-left: 2px solid var(--red);
+    }
+
+    /* Expandable screenshot (click to enlarge) */
+    .screenshot-slot.expandable img { cursor: zoom-in; transition: opacity 0.2s; }
+    .screenshot-slot.expandable img:hover { opacity: 0.88; }
+    .screenshot-slot .expand-hint {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--mid);
+      margin-left: auto;
+      opacity: 0.7;
+    }
+    .screenshot-slot-header { justify-content: flex-start; }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(13,13,13,0.92);
+      z-index: 9998;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      cursor: zoom-out;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      box-shadow: 0 8px 60px rgba(0,0,0,0.4);
+      cursor: zoom-out;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 24px;
+      right: 32px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--cream);
+      background: none;
+      border: 1px solid rgba(245,240,232,0.3);
+      padding: 8px 14px;
+      cursor: zoom-out;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .lightbox-close:hover { border-color: var(--red); color: var(--red); }
+    .lightbox-caption {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: rgba(245,240,232,0.7);
+      letter-spacing: 0.04em;
+      max-width: 80%;
+      text-align: center;
+    }
+    @media (max-width: 540px) {
+      .lightbox { padding: 16px; }
+      .lightbox-close { top: 12px; right: 16px; font-size: 10px; }
+    }
+
+    /* Inline anchor links to sources */
+    a.src-ref {
+      color: var(--red);
+      text-decoration: none;
+      font-size: 11px;
+      vertical-align: super;
+      line-height: 1;
+      padding: 0 1px;
+      border-bottom: none;
+    }
+    a.src-ref:hover { color: var(--black); }
+
+    /* Source items: bidirectional return links */
+    .source-item { scroll-margin-top: 80px; }
+    .source-back {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--mid);
+      text-decoration: none;
+      margin-left: 10px;
+      transition: color 0.2s;
+      white-space: nowrap;
+    }
+    .source-back:hover { color: var(--red); }
+    .source-back::before { content: '↩ '; }
+
+    /* Body paragraphs that get linked-to need scroll margin too */
+    .post-body [id^="ref-"] { scroll-margin-top: 80px; }
+
+    /* GitHub CTA */
+    .github-cta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 24px 28px;
+      border: 2px solid var(--black);
+      margin: 52px 0;
+      text-decoration: none;
+      color: var(--black);
+      transition: background 0.2s, color 0.2s;
+    }
+    .github-cta:hover { background: var(--black); color: var(--cream); }
+    .github-cta-icon { font-size: 28px; flex-shrink: 0; line-height: 1; }
+    .github-cta-text .label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 4px;
+    }
+    .github-cta:hover .github-cta-text .label { color: rgba(255,60,31,0.8); }
+    .github-cta-text .repo { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; }
+    .github-cta-text .desc { font-size: 13px; color: var(--mid); margin-top: 2px; }
+    .github-cta:hover .github-cta-text .desc { color: rgba(245,240,232,0.6); }
+    .github-cta-arrow { margin-left: auto; font-size: 20px; flex-shrink: 0; }
+
+    /* Sources */
+    .sources {
+      background: #ede8e0;
+      padding: 40px 48px;
+      margin-top: 72px;
+      margin-left: -48px;
+      margin-right: -48px;
+    }
+    .sources-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sources-title::before { content: ''; width: 24px; height: 1px; background: var(--red); }
+    .source-item {
+      display: flex;
+      gap: 16px;
+      align-items: baseline;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(13,13,13,0.1);
+    }
+    .source-item:last-child { border-bottom: none; }
+    .source-num { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--red); min-width: 20px; }
+    .source-text { font-size: 13px; color: var(--mid); line-height: 1.6; }
+    .source-text a { color: var(--black); text-decoration: none; border-bottom: 1px solid rgba(13,13,13,0.2); transition: border-color 0.2s, color 0.2s; }
+    .source-text a:hover { color: var(--red); border-color: var(--red); }
+
+    /* Sign off */
+    .post-signoff { margin-top: 72px; padding-top: 40px; border-top: 1px solid var(--border); }
+    .post-signoff p { font-size: 15px !important; color: var(--mid) !important; margin-bottom: 0 !important; }
+    .post-signoff a { color: var(--black); font-weight: 500; text-decoration: none; border-bottom: 1px solid var(--border); transition: color 0.2s, border-color 0.2s; }
+    .post-signoff a:hover { color: var(--red); border-color: var(--red); }
+
+    /* Author card */
+    .author-card {
+      background: var(--black);
+      color: var(--cream);
+      padding: 40px;
+      margin-top: 64px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    .author-card img {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid var(--red);
+    }
+    .author-card .author-info .name {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .author-card .author-info .bio {
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(245,240,232,0.7);
+      margin: 0;
+    }
+    .author-card .author-info .bio a { color: var(--red); text-decoration: none; }
+    @media (max-width: 500px) { .author-card { flex-direction: column; gap: 16px; padding: 24px; } }
+
+    /* Back link */
+    .back-link-wrap { padding: 40px 0 0; }
+    .back-link {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--mid);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--red); }
+    .back-link::before { content: '←'; }
+
+    /* Scroll reveal */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px clamp(24px, 5vw, 80px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    footer p { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--mid); margin: 0; }
+    footer a { color: var(--mid); text-decoration: none; transition: color 0.2s; }
+    footer a:hover { color: var(--red); }
+
+    /* Hamburger */
+    .hamburger { display: none; background: none; border: none; cursor: none; flex-direction: column; gap: 5px; padding: 4px; }
+    .hamburger span { display: block; width: 22px; height: 2px; background: var(--black); transition: all 0.25s ease; }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .mobile-menu {
+      display: none;
+      position: fixed;
+      inset: 60px 0 0;
+      background: var(--cream);
+      z-index: 99;
+      padding: 40px clamp(24px, 5vw, 48px);
+      flex-direction: column;
+      gap: 24px;
+      border-top: 2px solid var(--black);
+    }
+    .mobile-menu.open { display: flex; }
+    .mobile-menu a { font-family: 'Space Mono', monospace; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--black); text-decoration: none; }
+    @media (max-width: 640px) { .nav-links { display: none; } .hamburger { display: flex; } }
+    @media (max-width: 768px) {
+      .sources { padding: 32px 24px; margin-left: -24px; margin-right: -24px; }
+      .author-card { padding: 24px; gap: 16px; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="cursor" id="cursor"></div>
+
+  <nav>
+    <a href="index.html" class="nav-logo">All Out <span>of</span> Tokens</a>
+    <ul class="nav-links">
+      <li><a href="index.html#what-i-do">What I Do</a></li>
+      <li><a href="index.html#experience">Experience</a></li>
+      <li><a href="index.html#blog">Writing</a></li>
+      <li><a href="index.html#contact">Contact</a></li>
+    </ul>
+    <button class="hamburger" id="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="index.html#what-i-do">What I Do</a>
+    <a href="index.html#experience">Experience</a>
+    <a href="index.html#blog">Writing</a>
+    <a href="index.html#contact">Contact</a>
+  </div>
+
+  <main class="article-wrap">
+
+    <div class="back-link-wrap">
+      <a href="index.html#blog" class="back-link">All posts</a>
+    </div>
+
+    <header class="hero">
+      <div class="hero-meta">
+        <span class="tag">Finance × AI: In Practice</span>
+        <span class="tag-series">Post 3 of 5</span>
+        <span class="hero-date">May 2026</span>
+      </div>
+      <h1>The First Build: It Worked, And <em>That's the Problem</em></h1>
+      <p class="hero-deck">The v1 ran end-to-end. Two GL files in, three Excel tabs out, Claude-generated commentary on every material movement. The numbers were right. The structure held. So why did I throw it out and start again?</p>
+
+      <div class="series-nav">
+        <div class="series-nav-label">Build Log · Variance Commentary Generator</div>
+        <div class="series-nav-posts">
+          <div class="series-post done">
+            <span class="post-num">01</span>
+            <span class="post-label">The Problem</span>
+          </div>
+          <div class="series-post done">
+            <span class="post-num">02</span>
+            <span class="post-label">Architecture</span>
+          </div>
+          <div class="series-post active">
+            <span class="post-num">03</span>
+            <span class="post-label">First Build</span>
+          </div>
+          <div class="series-post">
+            <span class="post-num">04</span>
+            <span class="post-label">Finance-Grade</span>
+          </div>
+          <div class="series-post">
+            <span class="post-num">05</span>
+            <span class="post-label">What It Can't Do</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <article class="post-body">
+
+      <p class="reveal">The first version of the Variance Commentary Generator worked. It read two GL files. It calculated variances. It filtered for material movements. It called the Claude API. It produced a three-tab Excel file with AI-written commentary on every material variance between FY 2020 and FY 2021.</p>
+
+      <p class="reveal">Then I looked at the output and decided to throw the whole thing away.</p>
+
+      <p class="reveal">This post is about why. About the gap between "the code runs" and "this is good enough to put in front of a CFO." About what seven years in Big-4 audit teaches you to look for in management commentary, and what almost none of it shows up in a v1.</p>
+
+      <div class="build-spec reveal">
+        <div class="build-spec-title">Post 3 in brief</div>
+        <div class="build-spec-row">
+          <span class="build-spec-key">What ran</span>
+          <span class="build-spec-val"><strong>v1.0</strong>, ~250 lines of Python, openpyxl and the Claude API, three-tab Excel output</span>
+        </div>
+        <div class="build-spec-row">
+          <span class="build-spec-key">Input</span>
+          <span class="build-spec-val"><strong>Two GL exports</strong>, FY 2020 and FY 2021, with GL and Chart of Accounts sheets</span>
+        </div>
+        <div class="build-spec-row">
+          <span class="build-spec-key">What worked</span>
+          <span class="build-spec-val">Numbers, materiality filter, factual prompt, AI commentary that didn't invent reasons</span>
+        </div>
+        <div class="build-spec-row">
+          <span class="build-spec-key">What was missing</span>
+          <span class="build-spec-val">Connectivity. Cross-statement reasoning. Anything a board would actually find useful</span>
+        </div>
+      </div>
+
+      <h2 class="reveal">What the v1 actually did</h2>
+
+      <p class="reveal">The architecture from Post 2 held up cleanly. Read two periods, sum amounts by Account_key, merge, calculate variance and variance percentage, filter for material movements (more than 1,000 absolute and more than 5%), pass the material list to Claude with explicit "do not invent reasons" guardrails, write three Excel tabs.</p>
+
+      <p class="reveal">Here's the prompt that went to the API on the first run:</p>
+
+      <div class="code-block reveal">
+        <div class="code-block-label">analyse_v1.py · the prompt sent to Claude</div>
+        <pre><span class="fn">prompt</span> = <span class="st">f"""You are a senior finance analyst preparing a year-on-year variance commentary for management.
+
+Below is a summary of material movements between Y0 (2020) and Y1 (2021), pulled directly from the general ledger. All figures are factual, do not invent reasons.
+
+{variance_text}
+
+Write a concise management commentary that:
+1. Leads with the most significant movements (revenue, cost of sales, operating expenses)
+2. States the actual numbers and percentage changes, do not round or generalise
+3. Groups related movements together (e.g. all sales lines together, all cost lines together)
+4. Where a movement has a likely direct cause visible in the data (e.g. sales increased and cost of sales increased proportionally), note that connection
+5. Where the cause is not clear from the data alone, flag it as requiring management input, do not guess
+6. Uses plain finance language, no jargon, no filler phrases
+7. Keeps the total length to under 300 words
+
+Format: flowing paragraphs, not bullet points."""</span></pre>
+      </div>
+
+      <p class="reveal">Seven rules. The "do not invent reasons" instruction is in there twice, once in the framing, once explicitly in rule 5. The model used was <code>claude-opus-4-5</code><a href="#source-1" class="src-ref" id="ref-1">[1]</a>, max_tokens=1000, target output around 300 words.</p>
+
+      <p class="reveal">And it worked.</p>
+
+      <h2 class="reveal">What the output looked like</h2>
+
+      <p class="reveal">Three Excel tabs. The first was the commentary itself, with a header block, the AI-written narrative, and a "what was considered" metadata section explaining the materiality filter and the model used.</p>
+
+      <div class="screenshot-slot expandable reveal" data-caption="v1 output: Commentary tab with AI-generated narrative and methodology block">
+        <div class="screenshot-slot-header">Screenshot · v1 output, Commentary tab <span class="expand-hint">click to expand</span></div>
+        <img src="screenshot-v1-commentary.png" alt="Excel screenshot showing the v1 Commentary tab with AI-generated year-on-year variance narrative covering revenue, cost of sales and gross margin, and a methodology block listing data source, materiality filter, method, commentary engine, exclusions and limitations." />
+        <div class="screenshot-slot-caption">v1 Commentary tab. The narrative is real, generated by claude-opus-4-5 from the actual GL data. The methodology block at the bottom is what made me feel good about the build at first.</div>
+      </div>
+
+      <p class="reveal">Reading it back: the numbers are right. Sales declined 50.0% from $17.5m to $8.8m. Cost of Sales fell 50.7%, broadly proportional. The commentary even flags that gross margin remained stable as a result. Management context is correctly called out as missing rather than invented. There's a methodology block explaining what was considered and what wasn't. By the standards of "AI tool that wrote a thing", this is fine.</p>
+
+      <p class="reveal">The second tab listed every material variance, colour-coded green for favourable and red for adverse:</p>
+
+      <div class="screenshot-slot expandable reveal" data-caption="v1 output: Material Variances tab, showing every account above the materiality threshold">
+        <div class="screenshot-slot-header">Screenshot · v1 output, Material Variances tab <span class="expand-hint">click to expand</span></div>
+        <img src="screenshot-v1-material-variances.png" alt="Excel screenshot showing the v1 Material Variances tab. A table lists Account Key, Account Name, Category, Class, Y0 (2020), Y1 (2021), Variance, and Variance percentage for accounts that passed the materiality filter. Favourable rows are shaded light green, adverse rows shaded light red." />
+        <div class="screenshot-slot-caption">v1 Material Variances tab. Every account above the materiality threshold, sorted by variance amount. Functional, factually correct, not particularly insightful.</div>
+      </div>
+
+      <p class="reveal">The third tab was a full GL summary, every account whether it passed materiality or not, available for anyone wanting to verify what was filtered out.</p>
+
+      <p class="reveal">Three tabs. Real numbers. AI commentary that didn't make things up. By any reasonable definition, the tool worked.</p>
+
+      <h2 class="reveal">Why I threw it away</h2>
+
+      <p class="reveal">Seven years of Big-4 audit, sitting across from controllers, finance directors, and audit committees, teaches you a specific thing about variance commentary: the format that gets signed off by a board does more than describe movements. It <em>connects</em> them.</p>
+
+      <p class="reveal">A board pack reader doesn't want a list of accounts with arrows. They want the story the numbers are telling about the business. If profit went up year-on-year, the shareholders' equity section of the balance sheet should reflect that increase, because profits flow into reserves. That's a coherence check, not a finding. If it doesn't hold, something is wrong, either in the numbers or in the explanation. A good commentary either confirms the connection or explains why it isn't there (dividends paid, share buybacks, prior-year adjustments).<a href="#source-2" class="src-ref" id="ref-2">[2]</a></p>
+
+      <p class="reveal">Same logic everywhere. If cash decreased materially, you'd expect to see either a corresponding investment (a jump in property, plant and equipment), a debt repayment (a drop in long-term liabilities), or a dividend (a movement through retained earnings). If revenue jumped because of a new production line, the depreciation line on operating expenses should reflect the new asset, even if some of the related costs aren't capitalised. The accounts are connected. Real commentary surfaces the connections.</p>
+
+      <p class="reveal">The v1 didn't do any of that. It described each material movement in isolation, in finance-grammatical English, sourced entirely from a flat table of variances. It couldn't cross-reference the P&amp;L against the balance sheet. It couldn't trace a revenue movement back to the GL transactions that drove it. It couldn't spot when two changes implied a third. It couldn't tell a story.</p>
+
+      <p class="reveal">A junior analyst with a calculator could produce something equivalent in an afternoon. That's a useful benchmark. If a tool only gets you to "junior analyst with a calculator", the tool isn't earning its place in the workflow.</p>
+
+      <div class="pull-quote reveal">
+        <p>Real commentary surfaces the connections. The v1 described each variance in isolation, in finance-grammatical English. It couldn't tell a story.</p>
+      </div>
+
+      <h2 class="reveal">What good actually looks like</h2>
+
+      <p class="reveal">So I stopped building and started writing down what a board-grade commentary tool would actually need to produce. Not from generic AI-finance writing, from what I'd seen sit on the desks of CFOs and audit committee chairs over seven years.<a href="#source-3" class="src-ref" id="ref-3">[3]</a></p>
+
+      <p class="reveal">The list ended up looking something like this.</p>
+
+      <div class="failure-log reveal">
+        <div class="failure-log-header">
+          <span class="flog-label">Spec for v2 · what board-grade commentary needs</span>
+        </div>
+        <div class="failure-log-item">
+          <span class="failure-icon">→</span>
+          <div class="failure-content">
+            <div class="failure-title">An executive summary that earns its first paragraph</div>
+            <div class="failure-detail">75 words, lead with the single most important message, state revenue growth, gross margin direction, EBITDA movement, and end on run-rate or risk. Not a recap. A judgement.</div>
+          </div>
+        </div>
+        <div class="failure-log-item">
+          <span class="failure-icon">→</span>
+          <div class="failure-content">
+            <div class="failure-title">A P&amp;L bridge from Net Revenue to EBITDA</div>
+            <div class="failure-detail">Waterfall logic, line by line. The reader should see exactly where the EBITDA movement came from before reading a single sentence of narrative.</div>
+          </div>
+        </div>
+        <div class="failure-log-item">
+          <span class="failure-icon">→</span>
+          <div class="failure-content">
+            <div class="failure-title">A transaction trail for every material variance</div>
+            <div class="failure-detail">If Cost of Sales moved by 2.7m, the reader should be able to drill into the top GL transactions that drove it. Without that, the commentary is asserting, not evidencing.</div>
+          </div>
+        </div>
+        <div class="failure-log-item">
+          <span class="failure-icon">→</span>
+          <div class="failure-content">
+            <div class="failure-title">Balance Sheet flux, alongside the P&amp;L</div>
+            <div class="failure-detail">Cash, receivables, payables, fixed assets, equity. With one-off events flagged. This is where the cross-statement coherence checks live.</div>
+          </div>
+        </div>
+        <div class="failure-log-item">
+          <span class="failure-icon">→</span>
+          <div class="failure-content">
+            <div class="failure-title">An Opex breakdown by category</div>
+            <div class="failure-detail">Sales &amp; Distribution, Marketing, Administration, separately. With totals as formulas, not hardcoded values, so a reviewer can audit the workings.</div>
+          </div>
+        </div>
+        <div class="failure-log-item">
+          <span class="failure-icon">→</span>
+          <div class="failure-content">
+            <div class="failure-title">A methodology tab that survives challenge</div>
+            <div class="failure-detail">Materiality thresholds, the AI engine used, what was excluded and why. Sign-off checklist. Anyone reviewing the pack should be able to defend it without calling the analyst.</div>
+          </div>
+        </div>
+        <div class="failure-log-item">
+          <span class="failure-icon">→</span>
+          <div class="failure-content">
+            <div class="failure-title">Accounts requiring management input, surfaced explicitly</div>
+            <div class="failure-detail">Five specific questions referencing five specific accounts, each tied to a variance amount the AI couldn't explain from the GL alone. Not "context to be added by reviewer." Actual questions for actual humans.</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="reveal">None of this is exotic. Every item on that list is something a competent FP&amp;A team produces every quarter. The point of the tool isn't to invent a new format. It's to take a working format that takes a small team a week and produce a first draft of it from raw GL in twenty seconds.</p>
+
+      <p class="reveal">The v1 wasn't producing that format. It was producing a thinner, less connected version of one slice of it. Which is why it had to go.</p>
+
+      <h2 class="reveal">What's coming in Post 4</h2>
+
+      <p class="reveal">v2 was the rebuild. Nine Excel tabs instead of three. A waterfall bridge chart. A transaction trail with the top GL movements per material account. A balance sheet flux tab. An opex breakdown. A methodology tab. An interactive HTML dashboard alongside the Excel. Hundreds of new lines of Python.</p>
+
+      <p class="reveal">Post 4 walks through that build. What stayed from v1. What had to be torn out. The places where the prompt itself had to grow from seven rules to a structured spec with four required sections. And the parts that, even now, the tool can't do, which is what Post 5 is for.</p>
+
+      <a href="https://github.com/alloutofxps/variance-commentary-generator" target="_blank" class="github-cta reveal">
+        <div class="github-cta-icon">⬡</div>
+        <div class="github-cta-text">
+          <div class="label">Repository · v1 archived, v2 in progress</div>
+          <div class="repo">variance-commentary-generator</div>
+          <div class="desc">github.com/alloutofxps/variance-commentary-generator</div>
+        </div>
+        <div class="github-cta-arrow">↗</div>
+      </a>
+
+      <div class="sources reveal">
+        <div class="sources-title">Notes</div>
+        <div class="source-item" id="source-1">
+          <span class="source-num">1</span>
+          <span class="source-text">claude-opus-4-5 was the model used in v1 and continued through to the current version. Earlier in the build I tested the same prompt against claude-sonnet-4-5 to see if a smaller, faster model could carry the work. It could, on clean rows, but it was less reliable on edge cases (zero variance lines, accounts with missing prior-year values). Opus stayed. <a href="#ref-1" class="source-back">back to text</a></span>
+        </div>
+        <div class="source-item" id="source-2">
+          <span class="source-num">2</span>
+          <span class="source-text">The cleanest articulation of this I've encountered is in audit training: every figure on the balance sheet has a counterparty somewhere else in the financial statements. Profit ties to retained earnings. Cash ties to the cash flow statement. Fixed-asset additions tie to investing activities. A variance commentary that doesn't traverse these connections is doing description, not analysis. <a href="#ref-2" class="source-back">back to text</a></span>
+        </div>
+        <div class="source-item" id="source-3">
+          <span class="source-num">3</span>
+          <span class="source-text">For anyone wanting a public reference: the IFRS Foundation's <a href="https://www.ifrs.org/issued-standards/management-commentary-practice-statement/" target="_blank">Management Commentary Practice Statement</a> sets out what good commentary should contain. It's principles-based rather than prescriptive, but the four pillars (resources and relationships, risks, results and prospects, and performance measures) map almost directly to the gaps the v1 had. <a href="#ref-3" class="source-back">back to text</a></span>
+        </div>
+      </div>
+
+      <div class="post-signoff">
+        <p>Next post: the v2 rebuild, the nine-tab output, the prompt that grew with it, and what changed when the tool stopped describing variances and started connecting them. Find me on <a href="https://linkedin.com/in/pratikparashar93" target="_blank">LinkedIn</a> if you want to follow along, or if you've built something similar and want to compare notes.</p>
+      </div>
+
+      <div class="author-card reveal">
+        <img src="pratik.jpg" alt="Pratik Parashar" />
+        <div class="author-info">
+          <div class="name">Pratik Parashar</div>
+          <p class="bio">Senior Auditor at a Big-4 firm in the Netherlands. Writing about AI, finance, and what happens when the two collide. Building a Variance Commentary Generator in public. Open to new roles in Finance Transformation, FP&amp;A, and Financial Control. <a href="https://linkedin.com/in/pratikparashar93" target="_blank">LinkedIn →</a></p>
+        </div>
+      </div>
+
+    </article>
+  </main>
+
+  <!-- Lightbox for expandable screenshots -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Expanded screenshot">
+    <button class="lightbox-close" id="lightbox-close" aria-label="Close expanded view">Close · Esc</button>
+    <img id="lightbox-img" src="" alt="" />
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 Pratik Parashar</p>
+    <p><a href="index.html">alloutoftokens.com</a></p>
+  </footer>
+
+  <script>
+    const cursor = document.getElementById('cursor');
+    document.addEventListener('mousemove', e => {
+      cursor.style.left = e.clientX + 'px';
+      cursor.style.top  = e.clientY + 'px';
+    });
+    document.querySelectorAll('a, button').forEach(el => {
+      el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+      el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    const ham  = document.getElementById('hamburger');
+    const menu = document.getElementById('mobile-menu');
+    ham.addEventListener('click', () => {
+      ham.classList.toggle('open');
+      menu.classList.toggle('open');
+    });
+
+    // Lightbox: click an expandable screenshot's image to enlarge
+    const lightbox     = document.getElementById('lightbox');
+    const lightboxImg  = document.getElementById('lightbox-img');
+    const lightboxCap  = document.getElementById('lightbox-caption');
+    const lightboxX    = document.getElementById('lightbox-close');
+
+    function openLightbox(src, alt, caption) {
+      lightboxImg.src = src;
+      lightboxImg.alt = alt || '';
+      lightboxCap.textContent = caption || '';
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+      setTimeout(() => { lightboxImg.src = ''; }, 200);
+    }
+
+    document.querySelectorAll('.screenshot-slot.expandable img').forEach(img => {
+      img.addEventListener('click', () => {
+        const slot = img.closest('.screenshot-slot');
+        const cap  = slot ? slot.getAttribute('data-caption') || '' : '';
+        openLightbox(img.src, img.alt, cap);
+      });
+    });
+
+    lightbox.addEventListener('click', e => {
+      if (e.target === lightbox || e.target === lightboxImg) closeLightbox();
+    });
+    lightboxX.addEventListener('click', closeLightbox);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
+    });
+  </script>
+</body>
+</html>
