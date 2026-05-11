@@ -47,8 +47,8 @@ Y0_LABEL = "FY 2020"
 Y1_LABEL = "FY 2021"
 
 # ── API KEY ───────────────────────────────────────────────────────────────────
-# Set as environment variable ANTHROPIC_API_KEY — do NOT hardcode here
-API_KEY = os.environ.get("ANTHROPIC_API_KEY", "paste_your_key_here")
+# Paste your Anthropic API key between the quotes below (starts with sk-ant-)
+API_KEY = ""  # ← PASTE KEY HERE
 
 # ── MATERIALITY THRESHOLDS ────────────────────────────────────────────────────
 # Both abs AND pct must be met for an account to be flagged as material
@@ -1306,11 +1306,9 @@ def preflight_check():
         errors.append(f"  ✗ Missing: {Y0_FILE}  (rename your prior-year file to {Y0_FILE})")
     if not os.path.exists(Y1_FILE):
         errors.append(f"  ✗ Missing: {Y1_FILE}  (rename your current-year file to {Y1_FILE})")
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key or not api_key.startswith("sk-ant"):
-        errors.append("  ✗ API key not set. Set environment variable: ANTHROPIC_API_KEY=your-key-here")
-        errors.append("    Example (Mac/Linux): export ANTHROPIC_API_KEY=sk-ant-...")
-        errors.append("    Example (Windows):   set ANTHROPIC_API_KEY=sk-ant-...")
+    if not API_KEY or not API_KEY.startswith("sk-ant"):
+        errors.append("  ✗ API key not set. Open analyse.py and paste your key on line 51:")
+        errors.append('    API_KEY = "sk-ant-your-actual-key-here"  # ← PASTE KEY HERE')
     if errors:
         print("\n" + "="*60)
         print("  SETUP INCOMPLETE — fix these issues before running:")
