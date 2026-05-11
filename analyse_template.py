@@ -48,7 +48,7 @@ Y1_LABEL = "FY 2021"
 
 # ── API KEY ───────────────────────────────────────────────────────────────────
 # Set as environment variable ANTHROPIC_API_KEY — do NOT hardcode here
-API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+API_KEY = os.environ.get("ANTHROPIC_API_KEY", "paste_your_key_here")
 
 # ── MATERIALITY THRESHOLDS ────────────────────────────────────────────────────
 # Both abs AND pct must be met for an account to be flagged as material
