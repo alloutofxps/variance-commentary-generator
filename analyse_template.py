@@ -47,8 +47,8 @@ Y0_LABEL = "FY 2020"
 Y1_LABEL = "FY 2021"
 
 # ── API KEY ───────────────────────────────────────────────────────────────────
-# Set your key here OR as environment variable ANTHROPIC_API_KEY
-API_KEY = os.environ.get("ANTHROPIC_API_KEY", "paste-your-api-key-here")
+# Set as environment variable ANTHROPIC_API_KEY — do NOT hardcode here
+API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 # ── MATERIALITY THRESHOLDS ────────────────────────────────────────────────────
 # Both abs AND pct must be met for an account to be flagged as material
@@ -127,7 +127,7 @@ def is_material(row):
     thr = THRESHOLDS.get(cat, THRESHOLDS["DEFAULT"])
     if row.get("Report") == "Balance Sheet":
         thr = THRESHOLDS["Balance Sheet"]
-    pct = abs(row["VarPct"]) if row["VarPct"] is not None else 0
+    pct = abs(row["VarPct"]) if pd.notna(row["VarPct"]) else 0
     return abs(row["Var"]) >= thr["abs"] and pct >= thr["pct"]
 
 def row_bg(var_val, is_mat):
@@ -181,7 +181,8 @@ def load_user_context():
     if os.path.exists(CONTEXT_FILE):
         with open(CONTEXT_FILE, encoding="utf-8") as f:
             txt = f.read().strip()
-        if txt and txt != open(CONTEXT_FILE).read().strip()[:50]:  # not just template
+        # Return context if non-empty and not the default template placeholder
+        if txt and "add your management context here" not in txt.lower():
             return txt
     return ""
 
@@ -287,7 +288,7 @@ RULES: No markdown bold or italic. Plain text only. Every claim traceable to the
 
     client  = anthropic.Anthropic(api_key=API_KEY)
     msg     = client.messages.create(
-        model="claude-opus-4-5", max_tokens=1500,
+        model="claude-opus-4-6", max_tokens=1500,
         messages=[{"role":"user","content":prompt}])
     raw = msg.content[0].text
     return parse_commentary(raw)
@@ -843,7 +844,7 @@ def build_methodology_tab(wb, summary, commentary, user_context=""):
             ("Balance Sheet threshold","Raised to 10% AND 50,000 to filter minor accrual noise."),
         ]),
         ("AI ENGINE",[
-            ("Model","claude-opus-4-5 via Anthropic Messages API"),
+            ("Model","claude-opus-4-6 via Anthropic Messages API"),
             ("Commentary parser","Fixed in v5/v6: sections saved correctly when next header encountered. exec and revenue sections were always empty in v4 due to parser bug."),
             ("Grounding rule","All commentary grounded in GL transaction data only."),
             ("Human review","REQUIRED before sharing — AI draft only."),
@@ -1006,8 +1007,8 @@ function buildRevChart(id){
 function buildBridge(){
   const nt=D.bridge.filter(s=>s.type!=='total');
   mkChart('bridgeChart',{type:'bar',data:{labels:nt.map(s=>s.label),
-    datasets:[{label:'Movement',data:nt.map(s=>s.b-s.a),
-      backgroundColor:nt.map(s=>(s.b-s.a)>0?'rgba(27,94,32,.7)':'rgba(183,28,28,.7)'),
+    datasets:[{label:'Movement',data:nt.map(s=>s.y1-s.y0),
+      backgroundColor:nt.map(s=>(s.y1-s.y0)>0?'rgba(27,94,32,.7)':'rgba(183,28,28,.7)'),
       borderRadius:3}]},
     options:{responsive:true,maintainAspectRatio:true,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Movement: ${fmt(c.raw)}`}}},
@@ -1037,7 +1038,7 @@ function buildTerrVar(){
 function buildRevCharts(){buildRevChart('revChart2');buildTerrVar();}
 
 let vf='all',vs='',vsort={k:'var',d:-1};
-const mx=Math.max(...D.vars.map(v=>Math.abs(v.var)));
+const mx=D.vars.length?Math.max(...D.vars.map(v=>Math.abs(v.var))):1;
 
 function renderVars(){
   let rows=D.vars.filter(v=>{
@@ -1069,7 +1070,7 @@ function renderVars(){
 
 function fv(f,btn){vf=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderVars();}
 function sv(v){vs=v.toLowerCase();renderVars();}
-function sortV(k){vsort.d=vsort.k===k?-vsort.d:-1;vsort.k=k;document.querySelectorAll('.vth').forEach(t=>t.classList.remove('s'));event.target.classList.add('s');renderVars();}
+function sortV(k,e){vsort.d=vsort.k===k?-vsort.d:-1;vsort.k=k;document.querySelectorAll('.vth').forEach(t=>t.classList.remove('s'));(e||event).target.classList.add('s');renderVars();}
 
 let vchart=null;
 function buildVarChart(){
@@ -1112,8 +1113,11 @@ function buildPL(){
 
 function fillCmt(){
   ['exec','rev','opex','mgmt'].forEach(k=>{
-    const el=document.getElementById('c'+k);
-    if(el)el.textContent=D.cmt[k]||'No commentary generated.';
+    const txt=D.cmt[k]||'No commentary generated.';
+    ['c'+k,'c'+k+'2'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.textContent=txt;
+    });
   });
 }
 
@@ -1125,6 +1129,7 @@ buildRevChart('revChart');
 buildBridge();
 buildTerrChart();
 renderVars();
+fillCmt();
 """
 
     html = f"""<!DOCTYPE html>
@@ -1208,7 +1213,7 @@ table.plt{{width:100%;border-collapse:collapse;font-size:13px}}.plt th{{padding:
     <div class="cc fade"><div class="ct">Monthly Revenue</div><div class="cs">Full year comparison · {Y0_LABEL} vs {Y1_LABEL}</div><canvas id="revChart"></canvas></div>
     <div class="cc fade"><div class="ct">P&L Bridge</div><div class="cs">Movement from prior year · green = fav · red = adv</div><canvas id="bridgeChart"></canvas></div>
   </div>
-  <div class="fcc fade"><div class="ct">Revenue by Territory</div><div class="cs">{Y0_LABEL} vs {Y1_LABEL}</div><canvas id="terrChart"></canvas></div>
+  <div class="cc fcc fade"><div class="ct">Revenue by Territory</div><div class="cs">{Y0_LABEL} vs {Y1_LABEL}</div><canvas id="terrChart"></canvas></div>
   <div class="cmtcard fade">
     <div class="cmtlbl">Executive Summary</div><div class="ai">AI-GENERATED · VERIFY BEFORE USE</div>
     <div class="cmttxt" id="exec0"></div>
@@ -1241,19 +1246,19 @@ table.plt{{width:100%;border-collapse:collapse;font-size:13px}}.plt th{{padding:
     </div>
     <table class="vt">
       <thead><tr>
-        <th class="vth" onclick="sortV('account')">Account</th>
-        <th class="vth" onclick="sortV('category')">Category</th>
-        <th class="vth nr" onclick="sortV('y0')">{Y0_LABEL}</th>
-        <th class="vth nr" onclick="sortV('y1')">{Y1_LABEL}</th>
-        <th class="vth nr" onclick="sortV('var')">Variance</th>
-        <th class="vth nr" onclick="sortV('pct')">Var %</th>
+        <th class="vth" onclick="sortV('account',event)">Account</th>
+        <th class="vth" onclick="sortV('category',event)">Category</th>
+        <th class="vth nr" onclick="sortV('y0',event)">{Y0_LABEL}</th>
+        <th class="vth nr" onclick="sortV('y1',event)">{Y1_LABEL}</th>
+        <th class="vth nr" onclick="sortV('var',event)">Variance</th>
+        <th class="vth nr" onclick="sortV('pct',event)">Var %</th>
         <th class="vth">F/A</th>
         <th class="vth">Drivers</th>
       </tr></thead>
       <tbody id="vtbody"></tbody>
     </table>
   </div>
-  <div class="fcc fade">
+  <div class="cc fcc fade">
     <div class="ct">Top Variances · Absolute Impact</div>
     <div class="cs">Green = Favourable · Red = Adverse</div>
     <canvas id="varChart"></canvas>
@@ -1302,9 +1307,10 @@ def preflight_check():
     if not os.path.exists(Y1_FILE):
         errors.append(f"  ✗ Missing: {Y1_FILE}  (rename your current-year file to {Y1_FILE})")
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key and (API_KEY == "paste-your-api-key-here" or not API_KEY.startswith("sk-ant")):
-        errors.append("  ✗ API key not set. Edit the API_KEY line at the top of this file,")
-        errors.append("    OR set environment variable: ANTHROPIC_API_KEY=your-key-here")
+    if not api_key or not api_key.startswith("sk-ant"):
+        errors.append("  ✗ API key not set. Set environment variable: ANTHROPIC_API_KEY=your-key-here")
+        errors.append("    Example (Mac/Linux): export ANTHROPIC_API_KEY=sk-ant-...")
+        errors.append("    Example (Windows):   set ANTHROPIC_API_KEY=sk-ant-...")
     if errors:
         print("\n" + "="*60)
         print("  SETUP INCOMPLETE — fix these issues before running:")
